@@ -1,7 +1,8 @@
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
+import torch
 
-__all__ = ['BAM_ResNet', 'bam_resnet34', 'bam_resnet50']
+__all__ = ['CBAM_ResNet', 'cbam_resnet34_s', 'cbam_resnet50_s']
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
     """3x3 convolution with padding"""
@@ -12,76 +13,79 @@ def conv1x1(in_planes, out_planes, stride=1):
     """1x1 convolution"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
-class BAM_Block(nn.Module):
+def conv7x7(in_planes, out_planes, stride=1, groups=1, padding=0, dilation=1):
+    """3x3 convolution with padding"""
+    return nn.Conv2d(in_planes, out_planes, kernel_size=7, stride=stride,
+                     padding=padding, groups=groups, bias=False, dilation=dilation)
+
+class CBAM_Block(nn.Module):
     r = 16
-    d = 4
     def __init__(self, inplanes):
-        super(BAM_Block, self).__init__()
+        super(CBAM_Block, self).__init__()
         norm_layer = nn.BatchNorm2d
+        
+        # # Channel: avarage pool
+        # self.cbam_avg_Gpool_c1 = nn.AdaptiveAvgPool2d(1)
+        # self.cbam_conv1_c1 = conv1x1(inplanes, inplanes/self.r)
+        # self.cbam_bn1_c1 = norm_layer(inplanes/self.r)
+        # self.cbam_relu1_c1 = nn.ReLU(inplace=True)
+        # self.cbam_conv2_c1 = conv1x1(inplanes/self.r, inplanes)
 
-        # Channel-attention: 
-        self.avg_Gpool_c = nn.AdaptiveAvgPool2d(1)
-        self.conv1_c = conv1x1(inplanes, inplanes/self.r)
-        self.bn1_c = norm_layer(inplanes/self.r)
-        self.relu1_c = nn.ReLU(inplace=True)
-        self.conv2_c = conv1x1(inplanes/self.r, inplanes)
+        # # Channel: max pool
+        # self.cbam_avg_Gpool_c2 = nn.AdaptiveMaxPool2d(1)
+        # self.cbam_conv1_c2 = conv1x1(inplanes, inplanes/self.r)
+        # self.cbam_bn1_c2 = norm_layer(inplanes/self.r)
+        # self.cbam_relu1_c2 = nn.ReLU(inplace=True)
+        # self.cbam_conv2_c2 = conv1x1(inplanes/self.r, inplanes)
 
-        # Spatial-attention:
-        self.conv1_s = conv1x1(inplanes, inplanes/self.r)
-        self.bn1_s = norm_layer(inplanes/self.r)
-        self.relu1_s = nn.ReLU(inplace=True)
+        # # Channel: combine max+avg pool 
+        # self.cbam_sigmoid_c = nn.Sigmoid()
 
-        self.conv2_s = conv3x3(inplanes/self.r, inplanes/self.r, 1, 1, self.d)
-        self.bn2_s = norm_layer(inplanes/self.r)
-        self.relu2_s = nn.ReLU(inplace=True)
-
-        self.conv3_s = conv3x3(inplanes/self.r, inplanes/self.r, 1, 1, self.d)
-        self.bn3_s = norm_layer(inplanes/self.r)
-        self.relu3_s = nn.ReLU(inplace=True)
-
-        self.conv4_s = conv1x1(inplanes/self.r, 1)
-
-        # Combine two attention branches:
-        self.sigmoid_cs = nn.Sigmoid()
+        # Spatial: 
+        self.cbam_max_pool_s = torch.max
+        self.cbam_mean_pool_s = torch.mean
+        self.cbam_join_s = torch.cat
+        self.cbam_conv1_s = conv7x7(in_planes=2,out_planes=1, padding=3)
+        self.cbam_bn1_s = norm_layer(1)
+        self.cbam_sigmoid_s = nn.Sigmoid()
 
     def forward(self, x):
-        # Channel-attention:
-        out_c = self.avg_Gpool_c(x)
-        out_c = self.conv1_c(out_c)
-        out_c = self.bn1_c(out_c)
-        out_c = self.relu1_c(out_c)
-        out_c = self.conv2_c(out_c)
+        # # channel: average pool
+        # out_c1 = self.cbam_avg_Gpool_c1(x)
+        # out_c1 = self.cbam_conv1_c1(out_c1)
+        # out_c1 = self.cbam_bn1_c1(out_c1)
+        # out_c1 = self.cbam_relu1_c1(out_c1)
+        # out_c1 = self.cbam_conv2_c1(out_c1)
 
-        # Spatial-attention:
-        out_s = self.conv1_s(x)
-        out_s = self.bn1_s(out_s)
-        out_s = self.relu1_s(out_s)
+        # # channel: max pool
+        # out_c2 = self.cbam_avg_Gpool_c2(x)
+        # out_c2 = self.cbam_conv1_c2(out_c2)
+        # out_c2 = self.cbam_bn1_c2(out_c2)
+        # out_c2 = self.cbam_relu1_c2(out_c2)
+        # out_c2 = self.cbam_conv2_c2(out_c2)
 
-        out_s = self.conv2_s(out_s)
-        out_s = self.bn2_s(out_s)
-        out_s = self.relu2_s(out_s)
+        # # combine max+avg pool
+        # out_c = self.cbam_sigmoid_c(out_c1+out_c2) 
 
-        out_s = self.conv3_s(out_s)
-        out_s = self.bn3_s(out_s)
-        out_s = self.relu3_s(out_s)
+        # x = x*out_c.expand_as(x)
+    
+        # Spatial:
+        out_s1 = self.cbam_max_pool_s(x, 1)[0].unsqueeze(1)
+        out_s2 = self.cbam_mean_pool_s(x, 1).unsqueeze(1)
+        out_s = self.cbam_join_s((out_s1, out_s2), 1)
+    
+        out_s = self.cbam_conv1_s(out_s)
+        out_s = self.cbam_bn1_s(out_s)
+        out_s = self.cbam_sigmoid_s(out_s)
+    
+        return x * out_s.expand_as(x)       
 
-        out_s = self.conv4_s(out_s)
-
-        # Combine two attention branches (element-wise summation)
-        out_cs = self.sigmoid_cs(out_c.expand_as(x) + out_s.expand_as(x))
-        # out_c = self.bam_sigmoid_cs(out_c.expand_as(x))
-        # out_s = self.bam_sigmoid_cs(out_s.expand_as(x))
-
-        # return x * (1 + out_c)
-        # return x * (1 + out_s)
-        return x * (1 + out_cs)
-
-class BAM_BasicBlock(nn.Module):
+class CBAM_BasicBlock(nn.Module):
     expansion = 1
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1,
                  base_width=64, dilation=1, norm_layer=None):
-        super(BAM_BasicBlock, self).__init__()
+        super(CBAM_BasicBlock, self).__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         if groups != 1 or base_width != 64:
@@ -96,6 +100,7 @@ class BAM_BasicBlock(nn.Module):
         self.bn2 = norm_layer(planes)
         self.downsample = downsample
         self.stride = stride
+        self.CBAM = CBAM_Block(planes)
 
     def forward(self, x):
         identity = x
@@ -110,18 +115,20 @@ class BAM_BasicBlock(nn.Module):
         if self.downsample is not None:
             identity = self.downsample(x)
 
+        out = self.CBAM(out)
+
         out += identity
         out = self.relu(out)
 
         return out
 
 
-class BAM_Bottleneck(nn.Module):
+class CBAM_Bottleneck(nn.Module):
     expansion = 4
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1,
                  base_width=64, dilation=1, norm_layer=None):
-        super(BAM_Bottleneck, self).__init__()
+        super(CBAM_Bottleneck, self).__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         width = int(planes * (base_width / 64.)) * groups
@@ -135,6 +142,7 @@ class BAM_Bottleneck(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
         self.stride = stride
+        self.CBAM = CBAM_Block(planes * self.expansion)
 
     def forward(self, x):
         identity = x
@@ -153,18 +161,20 @@ class BAM_Bottleneck(nn.Module):
         if self.downsample is not None:
             identity = self.downsample(x)
 
+        out = self.CBAM(out)
+
         out += identity
         out = self.relu(out)
 
         return out
 
 
-class BAM_ResNet(nn.Module):
+class CBAM_ResNet(nn.Module):
 
     def __init__(self, block, layers, num_classes=1000, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
                  norm_layer=None):
-        super(BAM_ResNet, self).__init__()
+        super(CBAM_ResNet, self).__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         self._norm_layer = norm_layer
@@ -180,19 +190,12 @@ class BAM_ResNet(nn.Module):
                              "or a 3-element tuple, got {}".format(replace_stride_with_dilation))
         self.groups = groups
         self.base_width = width_per_group
-
+       
         # self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
         self.conv1 = conv3x3(3, self.inplanes)
         self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        
-        # BAM
-        self.bam1 = BAM_Block(64*block.expansion)
-        self.bam2 = BAM_Block(128*block.expansion)
-        self.bam3 = BAM_Block(256*block.expansion)
-
-        # make layers in ResNet arch
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2,
                                        dilate=replace_stride_with_dilation[0])
@@ -251,38 +254,23 @@ class BAM_ResNet(nn.Module):
         x = self.maxpool(x)
 
         x = self.layer1(x)
-        x = self.bam1(x)
-
         x = self.layer2(x)
-        x = self.bam2(x)
-
         x = self.layer3(x)
-        x = self.bam3(x)
-
         x = self.layer4(x)
-        
+
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         x = self.fc(x)
 
         return x
 
-def bam_resnet34(**kwargs):
+def cbam_resnet34_s(**kwargs):
     """Constructs a ResNet-34 model."""
-    model = BAM_ResNet(BAM_BasicBlock, [3, 4, 6, 3], **kwargs)
+    model = CBAM_ResNet(CBAM_BasicBlock, [3, 4, 6, 3], **kwargs)
     return model
 
-def bam_resnet34_c(**kwargs):
-    """Constructs a ResNet-34 model."""
-    model = BAM_ResNet(BAM_BasicBlock, [3, 4, 6, 3], **kwargs)
-    return model
 
-def bam_resnet34_s(**kwargs):
-    """Constructs a ResNet-34 model."""
-    model = BAM_ResNet(BAM_BasicBlock, [3, 4, 6, 3], **kwargs)
-    return model
-
-def bam_resnet50(**kwargs):
+def cbam_resnet50_s(**kwargs):
     """Constructs a ResNet-50 model."""
-    model = BAM_ResNet(BAM_Bottleneck, [3, 4, 6, 3], **kwargs)
+    model = CBAM_ResNet(CBAM_Bottleneck, [3, 4, 6, 3], **kwargs)
     return model

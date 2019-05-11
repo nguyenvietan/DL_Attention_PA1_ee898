@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 
-__all__ = ['BAM_ResNet', 'bam_resnet34', 'bam_resnet50']
+__all__ = ['BAM_ResNet', 'bam_resnet34_s', 'bam_resnet50_s']
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
     """3x3 convolution with padding"""
@@ -19,12 +19,12 @@ class BAM_Block(nn.Module):
         super(BAM_Block, self).__init__()
         norm_layer = nn.BatchNorm2d
 
-        # Channel-attention: 
-        self.avg_Gpool_c = nn.AdaptiveAvgPool2d(1)
-        self.conv1_c = conv1x1(inplanes, inplanes/self.r)
-        self.bn1_c = norm_layer(inplanes/self.r)
-        self.relu1_c = nn.ReLU(inplace=True)
-        self.conv2_c = conv1x1(inplanes/self.r, inplanes)
+        # # Channel-attention: 
+        # self.avg_Gpool_c = nn.AdaptiveAvgPool2d(1)
+        # self.conv1_c = conv1x1(inplanes, inplanes/self.r)
+        # self.bn1_c = norm_layer(inplanes/self.r)
+        # self.relu1_c = nn.ReLU(inplace=True)
+        # self.conv2_c = conv1x1(inplanes/self.r, inplanes)
 
         # Spatial-attention:
         self.conv1_s = conv1x1(inplanes, inplanes/self.r)
@@ -45,12 +45,12 @@ class BAM_Block(nn.Module):
         self.sigmoid_cs = nn.Sigmoid()
 
     def forward(self, x):
-        # Channel-attention:
-        out_c = self.avg_Gpool_c(x)
-        out_c = self.conv1_c(out_c)
-        out_c = self.bn1_c(out_c)
-        out_c = self.relu1_c(out_c)
-        out_c = self.conv2_c(out_c)
+        # # Channel-attention:
+        # out_c = self.avg_Gpool_c(x)
+        # out_c = self.conv1_c(out_c)
+        # out_c = self.bn1_c(out_c)
+        # out_c = self.relu1_c(out_c)
+        # out_c = self.conv2_c(out_c)
 
         # Spatial-attention:
         out_s = self.conv1_s(x)
@@ -68,13 +68,13 @@ class BAM_Block(nn.Module):
         out_s = self.conv4_s(out_s)
 
         # Combine two attention branches (element-wise summation)
-        out_cs = self.sigmoid_cs(out_c.expand_as(x) + out_s.expand_as(x))
+        # out_cs = self.sigmoid_cs(out_c.expand_as(x) + out_s.expand_as(x))
         # out_c = self.bam_sigmoid_cs(out_c.expand_as(x))
-        # out_s = self.bam_sigmoid_cs(out_s.expand_as(x))
+        out_s = self.sigmoid_cs(out_s.expand_as(x))
 
         # return x * (1 + out_c)
-        # return x * (1 + out_s)
-        return x * (1 + out_cs)
+        return x * (1 + out_s)
+        # return x * (1 + out_cs)
 
 class BAM_BasicBlock(nn.Module):
     expansion = 1
@@ -267,22 +267,12 @@ class BAM_ResNet(nn.Module):
 
         return x
 
-def bam_resnet34(**kwargs):
-    """Constructs a ResNet-34 model."""
-    model = BAM_ResNet(BAM_BasicBlock, [3, 4, 6, 3], **kwargs)
-    return model
-
-def bam_resnet34_c(**kwargs):
-    """Constructs a ResNet-34 model."""
-    model = BAM_ResNet(BAM_BasicBlock, [3, 4, 6, 3], **kwargs)
-    return model
-
 def bam_resnet34_s(**kwargs):
     """Constructs a ResNet-34 model."""
     model = BAM_ResNet(BAM_BasicBlock, [3, 4, 6, 3], **kwargs)
     return model
 
-def bam_resnet50(**kwargs):
-    """Constructs a ResNet-50 model."""
+def bam_resnet50_s(**kwargs):
+    """Constructs a ResNet-34 model."""
     model = BAM_ResNet(BAM_Bottleneck, [3, 4, 6, 3], **kwargs)
     return model

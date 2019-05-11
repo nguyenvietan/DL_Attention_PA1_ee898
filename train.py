@@ -37,25 +37,47 @@ def eval(model, dataset, size, device, batch_size=dataLoader.BATCH_SIZE):
     return (1-correct_5/size).item(), (1-correct_1/size).item()
 
 def select_model(model_name):
+    # Baseline
     if model_name == 'resnet50':
         return models.resnet.resnet50(num_classes=100)
     if model_name == 'resnet34':
         return models.resnet.resnet34(num_classes=100)
     
+    # SE
     if model_name == 'se_resnet50':
         return models.se_resnet.se_resnet50(num_classes=100)
     if model_name == 'se_resnet34':
         return models.se_resnet.se_resnet34(num_classes=100)
     
+    # BAM
     if model_name == 'bam_resnet50':
         return models.bam_resnet.bam_resnet50(num_classes=100)
+    if model_name == 'bam_resnet50_c':
+        return models.bam_resnet_c.bam_resnet50_c(num_classes=100)
+    if model_name == 'bam_resnet50_s':
+        return models.bam_resnet_s.bam_resnet50_s(num_classes=100)
+
     if model_name == 'bam_resnet34':
         return models.bam_resnet.bam_resnet34(num_classes=100)
+    if model_name == 'bam_resnet34_c':
+        return models.bam_resnet_c.bam_resnet34_c(num_classes=100)
+    if model_name == 'bam_resnet34_s':
+        return models.bam_resnet_s.bam_resnet34_s(num_classes=100)
 
+    # CBAM
     if model_name == 'cbam_resnet50':
         return models.cbam_resnet.cbam_resnet50(num_classes=100)
+    if model_name == 'cbam_resnet50_c':
+        return models.cbam_resnet_c.cbam_resnet50_c(num_classes=100)
+    if model_name == 'cbam_resnet50_s':
+        return models.cbam_resnet_s.cbam_resnet50_s(num_classes=100)
+
     if model_name == 'cbam_resnet34':
         return models.cbam_resnet.cbam_resnet34(num_classes=100)
+    if model_name == 'cbam_resnet34_c':
+        return models.cbam_resnet_c.cbam_resnet34_c(num_classes=100)
+    if model_name == 'cbam_resnet34_s':
+        return models.cbam_resnet_s.cbam_resnet34_s(num_classes=100)
 
 def save_checkpoint():
 	pass
@@ -67,7 +89,8 @@ if __name__ == '__main__':
         
     args = parser()
     print args
-    
+    print "Model: ", args.arch
+
     if not os.path.exists('./checkpoints'):
         os.mkdir('./checkpoints')
     save_path = './checkpoints/' + args.arch
@@ -149,6 +172,7 @@ if __name__ == '__main__':
         #                 }, os.path.join(save_path, args.arch + '_epoch{}.pth'.format(epoch)))
     
     print "--------- Finish Training --------"
+    print "Model: ", args.arch
     print "Top1E: ", e1_best
     print "Top5E: ", e5_best
     print '\n'
