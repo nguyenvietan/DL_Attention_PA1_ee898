@@ -162,14 +162,14 @@ if __name__ == '__main__':
         print('[Epoch %3d], lr: %.5f, Loss: %.3f | top1-e-train: %.3f, top5-e-train: %.3f | top1-e-test: %.3f, top5-e-test: %.3f' % \
                 (epoch, lr, avg_loss, e1_tr, e5_tr, e1_te, e5_te))
         
-        # if epoch % 10 == 0:
-        #     torch.save({
-        #                 'model_state_dict': model.state_dict(),
-        #                 'e1_train': e1_train, 
-        #                 'e5_train': e5_train,
-        #                 'e1_test': e1_test,
-        #                 'e5_test': e5_test
-        #                 }, os.path.join(save_path, args.arch + '_epoch{}.pth'.format(epoch)))
+        if epoch % 10 == 0:
+            torch.save({
+                        'model_state_dict': model.state_dict(),
+                        'e1_train': e1_train, 
+                        'e5_train': e5_train,
+                        'e1_test': e1_test,
+                        'e5_test': e5_test
+                        }, os.path.join(save_path, args.arch + '_epoch{}.pth'.format(epoch)))
     
     print "--------- Finish Training --------"
     print "Model: ", args.arch
