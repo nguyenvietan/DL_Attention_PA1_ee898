@@ -1,3 +1,5 @@
+# Implementation of CBAM with only spatial attention in ResNet50, ResNet34
+
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 import torch
