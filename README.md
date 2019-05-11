@@ -22,5 +22,5 @@ Train the CBAM-ResNet34 with 150 epochs, initial learning rate 0.1:
 ```sh
 $python train.py --arch cbam_resnet34 --learning-rate 0.1 --epoch 150 
 ```
-# Results obtained by Google Colab
+### Results obtained by Google Colab
 The folder **results** contains the runtime of my training processes using Google Colab.  
